@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rent Late Fee Calculator (Tenant Version)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <div class="min-h-screen flex items-center justify-center p-4">
+        <div class="w-full max-w-lg bg-white rounded-2xl shadow-lg p-8 space-y-6">
+            
+            <!-- Header Section -->
+            <div>
+                <h1 class="text-3xl font-bold text-gray-800 text-center">Late Fee Calculator</h1>
+                <p class="text-center text-gray-500 mt-2">Automatically calculates total rent due with late fees based on the current date.</p>
+            </div>
+
+            <!-- Input Section -->
+            <div class="space-y-2">
+                <label for="rentAmount" class="text-sm font-medium text-gray-700">Monthly Rent Amount</label>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">$</span>
+                    <input type="number" id="rentAmount"
+                           class="w-full pl-7 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                           placeholder="e.g., 1500"
+                           oninput="calculateTotalRent()">
+                </div>
+            </div>
+
+            <!-- Calculation Breakdown Section -->
+            <div id="calculation-breakdown" class="space-y-4 pt-4 border-t border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-700">Payment Breakdown</h2>
+                <div id="statusMessage" class="p-3 rounded-lg text-center font-medium"></div>
+
+                <div class="flex justify-between items-center text-gray-600">
+                    <span>Base Rent</span>
+                    <span id="baseRentDisplay" class="font-medium text-gray-800">$0.00</span>
+                </div>
+
+                <div id="initialFeeRow" class="flex justify-between items-center text-gray-600 hidden">
+                    <span>Initial Late Fee (10%)</span>
+                    <span id="lateFeeDisplay" class="font-medium text-red-600">$0.00</span>
+                </div>
+
+                <div id="dailyFeeRow" class="flex justify-between items-center text-gray-600 hidden">
+                    <span>Per-Diem Fee ($5/day)</span>
+                    <span id="perDiemDisplay" class="font-medium text-red-600">$0.00</span>
+                </div>
+
+                <div class="border-t border-gray-200 my-4"></div>
+
+                <!-- Total Due Section -->
+                <div class="flex justify-between items-center text-xl font-bold">
+                    <span class="text-gray-800">Total Amount Due</span>
+                    <span id="totalDueDisplay" class="text-blue-600">$0.00</span>
+                </div>
+            </div>
+             <p id="currentDateDisplay" class="text-center text-xs text-gray-400 mt-4"></p>
+        </div>
+    </div>
+
+    <script>
+        // --- CORE CALCULATION LOGIC ---
+
+        function calculateTotalRent() {
+            // Get the base rent amount from the input field. Default to 0 if empty.
+            const rentAmount = parseFloat(document.getElementById('rentAmount').value) || 0;
+
+            // --- Date and Fee Configuration ---
+            const today = new Date();
+            const dayOfMonth = today.getDate();
+            const gracePeriodEnd = 3; // Rent is late if paid AFTER the 3rd.
+            const dailyFeeAmount = 5;
+            const initialFeeRate = 0.10; // 10%
+
+            // Initialize fee variables
+            let initialLateFee = 0;
+            let dailyLateFee = 0;
+            let daysLate = 0;
+            let statusText = '';
+            let statusBgColor = 'bg-green-100';
+            let statusTextColor = 'text-green-800';
+
+            // --- Fee Calculation Logic ---
+            // Check if the current date is past the grace period.
+            if (dayOfMonth > gracePeriodEnd) {
+                // Only apply fees if a rent amount has been entered.
+                if (rentAmount > 0) {
+                    // 1. Calculate the one-time 10% late fee.
+                    initialLateFee = rentAmount * initialFeeRate;
+
+                    // 2. Calculate the number of days past the grace period.
+                    daysLate = dayOfMonth - gracePeriodEnd;
+
+                    // 3. Calculate the total daily fee.
+                    dailyLateFee = daysLate * dailyFeeAmount;
+
+                    // 4. Update status message for late rent with more descriptive text.
+                    if (daysLate === 1) {
+                         statusText = `Rent is 1 day late. A 10% fee and a $5.00 daily fee now apply.`;
+                    } else {
+                         statusText = `Rent is ${daysLate} days late. A 10% fee and $${dailyLateFee.toFixed(2)} in daily fees apply.`;
+                    }
+                    
+                    statusBgColor = 'bg-red-100';
+                    statusTextColor = 'text-red-800';
+
+                } else {
+                     statusText = 'Enter a rent amount to see fee calculation.';
+                     statusBgColor = 'bg-blue-100';
+                     statusTextColor = 'text-blue-800';
+                }
+            } else {
+                // If within the grace period, no fees apply.
+                statusText = 'Rent is not late. Due by the 3rd.';
+            }
+
+            // Calculate the final total amount.
+            const totalDue = rentAmount + initialLateFee + dailyLateFee;
+
+            // --- UPDATE THE UI ---
+            updateDisplay(rentAmount, initialLateFee, dailyLateFee, totalDue, statusText, statusBgColor, statusTextColor);
+        }
+
+        function updateDisplay(baseRent, initialFee, dailyFee, total, statusText, statusBg, statusTextCl) {
+            // Format numbers to currency string ($X.XX)
+            const formatCurrency = (num) => `$${num.toFixed(2)}`;
+
+            // Get references to all display elements
+            const baseRentEl = document.getElementById('baseRentDisplay');
+            const lateFeeEl = document.getElementById('lateFeeDisplay');
+            const perDiemEl = document.getElementById('perDiemDisplay');
+            const totalDueEl = document.getElementById('totalDueDisplay');
+            const statusMessageEl = document.getElementById('statusMessage');
+            const initialFeeRowEl = document.getElementById('initialFeeRow');
+            const dailyFeeRowEl = document.getElementById('dailyFeeRow');
+            const currentDateDisplayEl = document.getElementById('currentDateDisplay');
+
+            // Update the text content of the elements
+            baseRentEl.textContent = formatCurrency(baseRent);
+            lateFeeEl.textContent = formatCurrency(initialFee);
+            perDiemEl.textContent = formatCurrency(dailyFee);
+            totalDueEl.textContent = formatCurrency(total);
+            
+            // Update status message and its styling
+            statusMessageEl.textContent = statusText;
+            statusMessageEl.className = `p-3 rounded-lg text-center font-medium ${statusBg} ${statusTextCl}`;
+
+            // Show or hide the fee rows based on whether fees are applicable
+            initialFeeRowEl.classList.toggle('hidden', initialFee <= 0);
+            dailyFeeRowEl.classList.toggle('hidden', dailyFee <= 0);
+
+            // Display the current date
+            currentDateDisplayEl.textContent = `Calculation based on current date: ${new Date().toLocaleDateString()}`;
+        }
+
+        // --- INITIALIZATION ---
+        // Run the calculation once on page load to initialize the display.
+        window.onload = function() {
+            calculateTotalRent();
+        };
+    </script>
+</body>
+</html>
+```
+I've updated the code with more descriptive status messages in the `script` section. This should help make the fee structure perfectly clear to anyone using it. You now have two distinct versions of the calculator to use as you see f
